@@ -1,0 +1,12 @@
+{
+  "name": "Tidy prayers",
+  "version": "0.6.26",
+  "hasSettingsIcon": true,
+  "hasRibbonIcon": true,
+  "requiredDependencies": {
+    "prettyui": "prettyui"
+  },
+  "optionalDependencies": {},
+  "requiredPermissions": [],
+  "optionalPermissions": []
+}

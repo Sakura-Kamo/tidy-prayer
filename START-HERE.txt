@@ -1,0 +1,464 @@
+TIDY PRAYERS — START HERE
+Code version: 0.6.26 | Reading guide updated: 31 October 2026
+
+-------------------------------------
+*** Important: Requires Pretty-UI ***
+-------------------------------------
+
+This guide explains how to use the plugin, which file to open for a change,
+and how the files work together. The current package has 12 Lua files, one
+JSON manifest and one text documents (this one). 
+
+Please note, The prayer meter features are test mess about trials.
+
+CONTENTS
+1. Find the file you need
+2. File-by-file reading guide
+3. Follow a setting from a click to storage and the game interface
+4. Load, unload and use the plugin
+5. plugin.json: every field explained
+6. Saved settings and temporary state
+7. Terms used in the code
+8. Editing and checking a change
+
+
+1. FIND THE FILE YOU NEED
+
+Load/unload, login events, opening the window ........ main.lua
+Saving settings between reloads ..................... prayer_store.lua
+Separate Prayers/Curses and applying preferences .... prayer_books.lua
+Settings labels, buttons, tabs, menus and dragging .. selection_ui.lua
+Prayer names, icons, levels and upgrade families .... prayer_definitions.lua
+Custom order, blank cells and divider row planning .. prayer_order.lua
+Finding/validating actual game prayer components .... prayer_catalog.lua
+Hiding native icons and recovering after rebuilds .. prayer_filter.lua
+Moving native prayer icons and drawing dividers .... prayer_layout.lua
+Content height and native prayer scrollbars ......... prayer_scroll.lua
+Prayerbook meter, its circle, bar and hover text .... prayer_meter.lua
+Three-column action-bar resource display ........... action_bar_layout.lua
+Plugin name, version, dependency and permissions .... plugin.json
+Current file map and operating instructions ........ START-HERE.txt
+
+
+A setting usually touches more than one file. For a new saved preference, look
+at selection_ui.lua (control), prayer_books.lua (runtime value and snapshot),
+prayer_store.lua (validation/default) and the file that uses the value.
+For a wording-only change to a settings button, start with selection_ui.lua.
+
+
+2. FILE-BY-FILE READING GUIDE
+
+Each Lua file begins with its purpose and connection to the other files.
+Search for SECTION 1, SECTION 2, and so on inside that file; numbers restart
+in each file. Smaller comments explain tricky decisions within a section.
+
+Suggested first pass: main.lua, prayer_store.lua, prayer_books.lua, then
+selection_ui.lua. Read the native-interface and meter modules when needed.
+
+main.lua
+--------
+Starts the plugin and connects saved settings, prayer books, the settings window
+and meters.
+The client runs this file. Event callbacks keep the display updated;
+PluginShutdown releases it.
+  SECTION 1: Dependencies and shared state
+  SECTION 2: Messages, windows and saving
+  SECTION 3: Session loading and restoration
+  SECTION 4: Opening the settings window
+  SECTION 5: Client events and regular updates
+  SECTION 6: Plugin shutdown
+
+prayer_store.lua
+----------------
+Saves and reloads local preferences through PersistentDB, including after plugin
+unloads.
+main.lua calls load, save and retry. Settings live in PersistentDB; this Lua file
+contains the storage logic.
+  SECTION 1: Storage key and limits
+  SECTION 2: Validate and copy preferences
+  SECTION 3: Compare records and create storage state
+  SECTION 4: Load the saved record
+  SECTION 5: Write and verify a pending save
+  SECTION 6: Queue changes and retry failures
+
+prayer_books.lua
+----------------
+Keeps Prayers and Curses preferences separate while coordinating their shared game
+panel.
+main.lua owns this object. selection_ui.lua requests edits here; this file
+delegates native changes to Filter.
+  SECTION 1: Dependencies and book names
+  SECTION 2: Create books and restore preferences
+  SECTION 3: Choose entries and recognise the open book
+  SECTION 4: Restore the active panel
+  SECTION 5: Apply settings edits
+  SECTION 6: Shared spacing and runtime updates
+  SECTION 7: Prepare the saved record
+
+selection_ui.lua
+----------------
+Builds the Prayers, Curses and Settings pages, including hide/show clicks and
+custom drag editing.
+main.lua creates the window and passes one save-and-refresh callback. Pages edit Books
+preferences; they do not activate prayers.
+  SECTION 1: Window measurements and editor state
+  SECTION 2: Build one book page
+  SECTION 3: Visibility, selection and edit commands
+  SECTION 4: Drag input and insertion preview
+  SECTION 5: Build and refresh icon grids
+  SECTION 6: Right-click actions and page cleanup
+  SECTION 7: Page navigation and window coordination
+  SECTION 8: Shared Settings controls
+
+prayer_definitions.lua
+----------------------
+Builds the complete Prayers and Curses lists from the game's public configuration.
+main.lua loads definitions once per session. Books uses them for level choices and
+matching native icon artwork.
+  SECTION 1: Definition names and small readers
+  SECTION 2: Read lists and expand upgrade families
+  SECTION 3: Choose the level-appropriate tier
+  SECTION 4: Match artwork to unique definitions
+
+prayer_order.lua
+----------------
+Represents custom order as plain strings and calculates rows for prayers, spaces
+and dividers.
+Books edits these lists. Both the settings editor and native layout use the same
+row calculations; this file never writes to the game UI.
+  SECTION 1: Spacing limits and layout tokens
+  SECTION 2: Combine saved order with available prayers
+  SECTION 3: Add missing entries and move one item
+  SECTION 4: Plan logical rows and columns
+  SECTION 5: Convert rows into interface positions
+
+prayer_catalog.lua
+------------------
+Finds and validates the actual prayer button and glow components in the open game
+interface.
+Filter requests a capture before writing. Books also uses a smaller artwork-only
+read to recognise the open book.
+  SECTION 1: Native component IDs and validation helpers
+  SECTION 2: Validate one button and glow pair
+  SECTION 3: Read the visible prayer collection
+  SECTION 4: Recognise a book and approve a capture
+  SECTION 5: Detect native collection changes
+
+prayer_filter.lua
+-----------------
+Applies one book's saved hiding choices and asks Layout to arrange the remaining
+native icons.
+Books owns one Filter per book. Catalog validates native components; Layout owns
+their positions and scrolling.
+  SECTION 1: Dependencies, retry timing and state
+  SECTION 2: Release changes and roll back failures
+  SECTION 3: Match preferences and apply hiding
+  SECTION 4: Pause and recapture the panel
+  SECTION 5: Detect changes behind plugin hiding
+  SECTION 6: Maintain the current layout
+
+prayer_layout.lua
+-----------------
+Moves native prayer buttons with their glows for Fill spaces and Custom layouts.
+Filter calls this after validation. Order supplies custom rows; Scroll manages the
+required scroll range. Saved preferences are not written here.
+  SECTION 1: Dependencies and position comparison
+  SECTION 2: Plan Custom positions and dividers
+  SECTION 3: Track and restore native changes
+  SECTION 4: Detect replacement positions
+  SECTION 5: Apply Fill spaces or Custom layout
+  SECTION 6: Maintain scrolling
+
+prayer_scroll.lua
+-----------------
+Adjusts the prayer panel's scrollable content height to fit its arranged icons and
+separators.
+Layout calls apply and maintain. This module owns only scroll extent, scroll
+offset and the scrollbar's Lua hidden flag.
+  SECTION 1: Scroll IDs and property setters
+  SECTION 2: Record and restore scroll changes
+  SECTION 3: Validate and measure the viewport
+  SECTION 4: Fit content and clamp the offset
+
+prayer_meter.lua
+----------------
+Draws the optional prayerbook meter and coordinates its replacement of the
+original footer counter.
+main.lua calls update and hover. ActionBarLayout optionally hides the source
+prayer display only after a working book meter has been drawn.
+  SECTION 1: Component IDs and safe reading helpers
+  SECTION 2: Meter state and cleanup
+  SECTION 3: Read native circle and bar artwork
+  SECTION 4: Calculate placement and validate the book
+  SECTION 5: Create and draw meter decorations
+  SECTION 6: Apply settings and handle failure
+  SECTION 7: Show exact points on hover
+
+action_bar_layout.lua
+---------------------
+Optionally removes the action-bar prayer display and arranges the remaining
+resource displays in three columns.
+Meter calls this only while its replacement book meter is working. Native groups
+move at their original size; widened bar/text copies are decorative.
+  SECTION 1: Resource IDs and native component checks
+  SECTION 2: Restore owned positions and visibility
+  SECTION 3: Record native writes
+  SECTION 4: Capture native bar artwork
+  SECTION 5: Measure three equal columns
+  SECTION 6: Draw widened copies and move groups
+
+The two documents
+-----------------
+START-HERE.txt is the current entry point, file map and guide to behaviour.
+DEVELOPMENT.md preserves the earlier 0.6.10 audit and detailed design notes.
+Its versioned findings and test counts are historical, not the current package
+inventory or evidence that the later meter trials have been verified.
+
+
+3. FOLLOW A SETTING THROUGH THE PLUGIN
+
+Startup:
+  main.lua
+    -> prayer_store.lua: read and validate saved preferences
+    -> prayer_definitions.lua: read both complete game definition lists
+    -> prayer_books.lua: create book state and level-eligible choices
+    -> selection_ui.lua: show those choices and their controls
+
+An ordinary hide/show edit:
+  selection_ui.lua: receive the click
+    -> prayer_books.lua: change that book's hidden keys
+    -> prayer_filter.lua: apply it if that book is active and validated
+    -> main.lua changed(): save the snapshot and refresh open settings
+    -> prayer_store.lua: write to PersistentDB and verify the read-back
+
+A capture that finds an ambiguous identity:
+  prayer_filter.lua: mark preferencesChanged when saving a new ambiguity or
+    clearing its hidden choice
+    -> main.lua: save that correction, then clear the flag once Store accepts it
+    -> prayer_store.lua: confirm the write or retain a copied record for retry
+
+Native icon changes (display-only changes refresh settings without saving):
+  prayer_filter.lua
+    -> prayer_catalog.lua: capture and validate actual button/glow pairs
+    -> prayer_layout.lua: calculate and apply positions when needed
+       -> prayer_order.lua: plan custom rows without touching the UI
+       -> prayer_scroll.lua: fit the scroll range to the resulting content
+
+Optional meters:
+  main.lua Logic callback
+    -> prayer_meter.lua: read native points/artwork and draw the book meter
+       -> action_bar_layout.lua: optionally rearrange the resource strip
+
+Unload or recovery:
+  main.lua -> save preferences -> pause meters and books
+    -> each native-writing module restores the changes it recorded
+    -> destroy plugin-created decorations/windows and unsubscribe events
+
+An inactive book can receive saved preferences without changing the current
+native panel. The preference and its current on-screen application are therefore
+two different things. Recovery reconnects them after a native interface rebuild.
+
+
+4. LOAD, UNLOAD AND USE THE PLUGIN
+
+Developer console commands:
+  pon tidy-prayer   Load the plugin.
+  poff tidy-prayer  Unload it and attempt to restore its native UI changes.
+  prl tidy-prayer   Reload it after editing files.
+  prf              Refresh the plugin list if the folder is not listed.
+
+The beta installation is in:
+  ~/Jagex/RuneScape-BETA/dev_plugins/tidy-prayer/
+PrettyUI is a separate dependency in the neighbouring prettyui folder.
+The source copy being maintained is plugins/tidy-prayer/ in this workspace.
+Editing a source file affects the running plugin only after that file is copied
+to the beta installation and the plugin is reloaded.
+
+The window opens after a session loads. It can also be opened through the
+plugin's settings or ribbon entry. Its left tabs are Prayers, Curses and Settings.
+The two book tabs change the editor, not the character's active prayer book.
+
+Visibility and layout:
+- With Edit layout off, click a settings icon to hide/show it. Right-click offers
+  Hide or Make visible and also works while editing. These clicks change local
+  preferences; they do not activate a prayer.
+- Show all clears that book's hidden choices, including absent entries. Hide all
+  hides the currently listed choices while retaining earlier absent choices.
+- Default keeps native positions. Fill spaces packs shown icons into native
+  slots. Custom uses the saved order, including spaces and separators.
+- In Custom, enable Edit layout to select and drag inside Visible. A gold line
+  marks the insertion point. Use either half of an icon to insert before/after;
+  separators use their top/bottom halves. Dragging beyond the last item appends.
+- Add space reserves a cell. Add separator starts a full-width divider row.
+  Select a space or separator and use Remove selected to remove that one item.
+- Editing blocks ordinary hide/show clicks and bulk visibility buttons. Leaving
+  the grid or scrolling cancels a drag. Changing tabs/mode or closing the window
+  ends editing. Completed edits save immediately; there is no final Apply step.
+- Each book retains its own hidden choices, layout mode and custom order.
+  An upgraded prayer uses its family's saved custom position.
+
+Shared Settings:
+- Divider spacing: one value for both books, applied equally above/below each
+  Custom divider. Range 0–48 interface units; default 17. Extra rows can scroll.
+- Use prayerbook meter: replaces the book's footer counter when its native
+  components and current points can be read safely.
+- Bar Style / Filter menu: shows the circle, number and horizontal bar inside
+  the footer. This bar copies native artwork, including the fill and overlay.
+- Bar Style / Edge bar: draws a pill-shaped bar on a selected interface edge.
+  Its bar is canvas-drawn; its circle copies the native background and star.
+- Bar and Circle: independent edge/corner choices for Edge bar. Filter menu
+  disables these controls but retains their saved values.
+- Hide action bar prayer: while the replacement book meter is working, hide the
+  native action-bar prayer group and shift health, adrenaline and summoning into
+  three columns. Native groups and child controls move at their existing sizes;
+  wider, clickthrough copies draw their bars and text. Closing the book, disabling
+  the meter or an unsupported layout restores the native resource strip.
+
+Availability and recovery:
+The chooser uses earned Prayer level and shows the appropriate upgrade tier.
+It does not check quest, item or membership requirements and does not unlock
+prayers. Unknown or ambiguous native artwork is not hidden by guessing.
+Unloading retains preferences. Default restores positions but retains hiding;
+Show all restores the visibility preference for the chosen book. Turning off the
+meter restores its counter/resource changes. Failed saves are retried while the
+plugin runs; exiting before a successful retry can lose unsaved edits. If native
+restoration repeatedly fails, restart the beta client.
+
+The meter/resource layout is implemented as a trial, not a moderation approval
+or a claim that every native layout has been tested. In particular, whole native
+resource groups move in the three-column mode; this is not merely moving painted
+bar pixels. Submission eligibility for moving those controls remains unresolved.
+
+
+5. plugin.json: EVERY FIELD EXPLAINED
+
+JSON is data, not Lua. Standard JSON does not support comments. Explanations
+belong here so the manifest remains valid; do not add // or -- comments, or
+invent extra comment fields inside it.
+
+name: "Tidy prayers"
+  Display name shown in plugin interfaces. Developer console commands use the
+  folder name tidy-prayer, not this display name.
+version: "0.6.26"
+  Package version. This documentation/comment-only update keeps that version.
+hasSettingsIcon: true
+  Enables the plugin's settings entry. main.lua handles SettingsLayerReady.
+hasRibbonIcon: true
+  Enables the plugin's ribbon entry. main.lua handles ContentLayerReady.
+requiredDependencies: { "prettyui": "prettyui" }
+  Declares the PrettyUI dependency used by the window and controls. This is the
+  existing local development mapping, not a numeric published dependency ID.
+optionalDependencies: {}
+  No optional dependencies are declared.
+requiredPermissions: []
+  No additional required permissions are declared in this manifest.
+optionalPermissions: []
+  No optional permissions are declared. Empty lists are not moderation approval.
+
+The manifest contains no saved player choices. Those are stored separately.
+PrettyUI is external to this package; these comments describe the plugin's use
+of it, not the implementation or licensing of that dependency.
+
+
+6. SAVED SETTINGS AND TEMPORARY STATE
+
+Storage owner: prayer_store.lua
+Database: PersistentDB
+Record key: tidy-prayer:v1:local
+Current record format: version 3
+
+The v1 in the key is a stable name. The version field inside the record is the
+format version; changing format does not require abandoning the existing key.
+This plugin uses one profile across characters in the local client storage.
+It has no character-specific profile or cloud-sync code. Settings are not stored
+inside plugin.json, prayer_store.lua or a separate editable settings file here.
+
+Shared saved fields:
+  dividerSpacing       Equal padding around Custom dividers.
+  prayerBar            Whether the prayerbook meter is enabled.
+  prayerBarStyle       edge or filter.
+  prayerBarSide        left, bottom, right or top.
+  prayerCircleCorner   top-left, top-right, bottom-left or bottom-right.
+  hideActionBarPrayer  Whether to request the three-column resource layout.
+
+Each entry in books.prayers / books.curses saves:
+  hiddenIcons       Prayer identities chosen to be hidden.
+  ambiguousIcons    Identities that must not be matched to an uncertain icon.
+  layoutMode        default, fill or custom.
+  customOrder       Ordered prayer/family/space/separator tokens.
+  compact           Compatibility value derived from layoutMode == "fill".
+  markers           Compatibility copy of book-recognition artwork keys; rebuilt
+                    from the current definitions when books are created.
+
+Temporary values are not saved: native component handles, applied slot indices,
+original positions, preference-change flags, hover state, current drag, selected
+item and Edit layout on/off.
+That is why editing starts off after reopening even though the arrangement remains.
+
+Store's saved value is the last confirmed snapshot. pending is a copied snapshot
+waiting for a successful write and read-back. It survives session recovery within
+the same plugin instance, but not process exit/unload if no write has succeeded.
+
+
+7. TERMS USED IN THE CODE
+
+Native component: an existing piece of RuneScape's interface.
+Plugin-created component: an added window, icon copy, divider or meter decoration.
+Handle: a reference to one current UI object. Rebuilding the interface can replace
+  it, even when the new object uses the same numeric slot.
+Static ID / dynamic ID: identifies a collection and an entry inside that collection.
+  Neither alone proves that an entry is still the same prayer.
+Sprite: an image asset. Its numeric ID selects artwork, not a prayer action.
+Key: a stable saved prayer identity, such as 14541:struct.
+Family key: an upgrade group's identity, used so a replacement tier keeps its place.
+Token: an entry in customOrder: a prayer/family key, gap:1, separator:1, etc.
+Snapshot: a plain copy of values at a point in time, used for saving or restoration.
+Owned change: a native property write this plugin recorded so it can undo it.
+  Restoration checks surviving handles/values where possible before writing back.
+Rollback: undo a partially applied change after something fails.
+Capture: read and validate the current native components before using them.
+Anchor: a position expressed partly relative to a parent or the component itself.
+Viewport: the visible window into content that may extend beyond it and scroll.
+Clickthrough: decoration that lets pointer input reach the components below it.
+Callback: a function run later when a click, client event or other event occurs.
+Logic / Draw: client update events. Retry counts use Logic callbacks, not a fixed
+  number of seconds; Draw checks current display state without advancing retries.
+pcall: runs a function while catching an error so cleanup or recovery can happen.
+assert: stops a guarded operation when an assumption is false. These checks help
+  avoid modifying a native component whose structure is no longer understood.
+self: the current module/page object. A Lua colon call supplies self automatically.
+require / return: load a module's returned table of functions and values.
+
+
+8. EDITING AND CHECKING A CHANGE
+
+Read the file's purpose and section headings, then the comments around the
+specific function. Change a default in both runtime initialisation and saved-data
+validation when appropriate; otherwise old profiles and new profiles can differ.
+Do not replace component IDs or asset IDs based on appearance alone: the native
+writers validate type, identity, size and parent relationships as well.
+
+When changing code that writes native UI, check both application and restoration:
+turn it on, turn it off, close/reopen the book, resize, switch books and reload.
+A local syntax check cannot prove native appearance, clicks or recovery in-game.
+
+Workspace-only checks, run from the workspace root:
+  .tools/lua-5.4.8/src/luac -p plugins/tidy-prayer/<file>.lua
+  .tools/lua-5.4.8/src/lua output/prayer-hider-evidence/0.6.26-regression.lua
+  .tools/lua-5.4.8/src/lua output/prayer-hider-evidence/0.6.26-meter-tests.lua
+  .tools/lua-5.4.8/src/lua output/prayer-hider-evidence/0.6.26-action-bar-tests.lua
+
+The fixtures, compiler and backups stay outside the installed plugin. The three
+suites contain 163 synthetic checks for preferences, input, layout and restoration;
+they are not evidence of moderation approval or complete beta compatibility.
+The 0.6.26 cleanup removes the temporary meter component report and duplicate
+settings refreshes. Display changes no longer request a saved snapshot unless a
+capture also changes an ambiguity or hidden preference. Meter status text is
+assigned only when it changes. Useful failure messages and restoration checks
+remain in place.
+
+The saved format remains version 3, including compatibility fields, so this
+cleanup does not require a settings migration. Live native artwork is still read
+on each meter update; caching it would need separate checks for theme, hover and
+interface rebuild changes. The file boundaries and numbered reading sections
+remain the same.
