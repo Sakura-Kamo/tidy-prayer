@@ -207,13 +207,6 @@ move at their original size; widened bar/text copies are decorative.
   SECTION 5: Measure three equal columns
   SECTION 6: Draw widened copies and move groups
 
-The two documents
------------------
-START-HERE.txt is the current entry point, file map and guide to behaviour.
-DEVELOPMENT.md preserves the earlier 0.6.10 audit and detailed design notes.
-Its versioned findings and test counts are historical, not the current package
-inventory or evidence that the later meter trials have been verified.
-
 
 3. FOLLOW A SETTING THROUGH THE PLUGIN
 
